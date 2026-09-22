@@ -320,10 +320,49 @@
     background:var(--line);
   }
 
+  .grid-wrap{
+    position:relative;
+  }
   .grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(250px, 1fr));
+    display:flex;
+    flex-wrap:nowrap;
     gap:20px;
+    overflow-x:auto;
+    scroll-behavior:smooth;
+    scroll-snap-type:x proximity;
+    padding-bottom:6px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .grid::-webkit-scrollbar{ display:none; }
+
+  .scroll-arrow{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    background:#fff;
+    border:1px solid var(--line);
+    box-shadow:0 8px 20px -8px rgba(43,42,38,0.35);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    z-index:6;
+    transition:opacity .18s ease, transform .18s ease;
+    color:var(--espresso);
+  }
+  .scroll-arrow:hover{ transform:translateY(-50%) scale(1.06); }
+  .scroll-arrow svg{ width:18px; height:18px; }
+  .scroll-arrow.left{ left:-4px; }
+  .scroll-arrow.right{ right:-4px; }
+  .scroll-arrow.hidden{ opacity:0; pointer-events:none; }
+  @media(max-width:640px){
+    .scroll-arrow{ width:34px; height:34px; }
+    .scroll-arrow.left{ left:-2px; }
+    .scroll-arrow.right{ right:-2px; }
   }
 
   .card{
@@ -333,6 +372,9 @@
     overflow:hidden;
     display:flex;
     flex-direction:column;
+    flex:0 0 260px;
+    width:260px;
+    scroll-snap-align:start;
     transition:transform .2s ease, box-shadow .2s ease;
   }
   .card:hover{
@@ -753,10 +795,14 @@ function renderCatalog(){
   const cats = Object.keys(grouped);
   emptyState.style.display = cats.length === 0 ? 'block' : 'none';
 
-  catalogEl.innerHTML = cats.map(cat => `
+  catalogEl.innerHTML = cats.map((cat, catIdx) => `
     <section class="category-block">
       <h2 class="category-title" style="color:${getCategoryColor(cat)}">${cat}</h2>
-      <div class="grid">
+      <div class="grid-wrap">
+        <button type="button" class="scroll-arrow left hidden" data-scroll="${catIdx}" data-dir="-1" aria-label="Ver serviços anteriores">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="grid" id="grid-${catIdx}">
         ${grouped[cat].map(s => {
           const label = s.priceLabel === undefined ? "a partir de" : s.priceLabel;
           const isSpecial = label === "";
@@ -778,9 +824,40 @@ function renderCatalog(){
             </div>
           </article>
         `}).join('')}
+        </div>
+        <button type="button" class="scroll-arrow right" data-scroll="${catIdx}" data-dir="1" aria-label="Ver mais serviços">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
     </section>
   `).join('');
+
+  setupScrollArrows();
+}
+
+function setupScrollArrows(){
+  const grids = catalogEl.querySelectorAll('.grid');
+  grids.forEach((grid, idx) => {
+    const wrap = grid.closest('.grid-wrap');
+    const leftBtn = wrap.querySelector('.scroll-arrow.left');
+    const rightBtn = wrap.querySelector('.scroll-arrow.right');
+
+    function updateArrows(){
+      const maxScroll = grid.scrollWidth - grid.clientWidth;
+      leftBtn.classList.toggle('hidden', grid.scrollLeft <= 4);
+      rightBtn.classList.toggle('hidden', grid.scrollLeft >= maxScroll - 4);
+    }
+
+    leftBtn.addEventListener('click', () => {
+      grid.scrollBy({ left: -(grid.clientWidth * 0.85), behavior:'smooth' });
+    });
+    rightBtn.addEventListener('click', () => {
+      grid.scrollBy({ left: grid.clientWidth * 0.85, behavior:'smooth' });
+    });
+    grid.addEventListener('scroll', updateArrows);
+    window.addEventListener('resize', updateArrows);
+    updateArrows();
+  });
 }
 
 renderFilters();
